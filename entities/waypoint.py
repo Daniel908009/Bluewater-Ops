@@ -35,26 +35,68 @@ class Waypoint(Entity):
         control_points_forward = []
         control_points_backward = []
         looping = True
-        loopingAllowed = {"forward": True, "backward": False}
+        loopingAllowed = {"forward": True, "backward": True}
         while looping:
             to_waypoint_vec = (waypoint_pos - ship_pos).normalize()
             desired_heading = math.degrees(math.atan2(to_waypoint_vec.y, to_waypoint_vec.x)) + 90
+            desired_heading = desired_heading % 360
+            #print("Desired heading:", desired_heading)
+            #break
             #old_heading = math.degrees(ship_heading_rad)
-            heading_diff = abs((desired_heading - math.degrees(ship_heading_rad) + 180) % 360 - 180)
+            if not currentlyReversing:
+                smallerHeading = min(desired_heading, math.degrees(ship_heading_rad))
+                largerHeading = max(desired_heading, math.degrees(ship_heading_rad))
+                heading_diff = abs((largerHeading - smallerHeading + 180) % 360 - 180)
+                #print("--------------------------------")
+                #print("Currently moving forward, desired heading:", desired_heading)
+                #print("Currently moving forward, ship heading:", math.degrees(ship_heading_rad))
+                #print("Heading diff (forward):", heading_diff)
+            else:
+                #break
+                #print("--------------------------------")
+                #print("Currently reversing, desired heading:", desired_heading)
+                #print("Currently reversing, ship heading:", ship_heading_rad)
+                #print("Currently reversing, current heading:", ship_heading_rad + math.pi)
+                smallerHeading = min(desired_heading, (math.degrees(ship_heading_rad) + 180) % 360)
+                largerHeading = max(desired_heading, (math.degrees(ship_heading_rad) + 180) % 360)
+                heading_diff = abs((largerHeading - smallerHeading + 180) % 360 - 180)
+                #print("Currently reversing, desired heading:", desired_heading)
+                #print("Currently reversing, ship heading tail:", (math.degrees(ship_heading_rad) + 180) % 360)
+                #print("Heading diff (reversing):", heading_diff)
+                #break
+            #if currentlyReversing:
+                #print("Reversing turning waypoint...")
+                #print("Desired heading:", desired_heading)
+                #print("Current heading:", math.degrees(ship_heading_rad) + 180 % 360)
+                #print("Heading diff:", heading_diff)
+                #break
             #print("heading diff:", heading_diff)
             #print("ship heading rad:", math.degrees(ship_heading_rad))
             #break
+            if heading_diff < 0.1:
+                heading_diff = 0
+                #if currentlyReversing:
+                    #print("Heading aligned.")
             if heading_diff != 0:
                 ship_target_speed = ship_max_speed * ship_optimal_turn_speed
                 if currentlyReversing:
                     ship_target_speed = ship_max_speed_backward * ship_optimal_turn_speed
                 #print("ship target speed (turning):", ship_target_speed)
                 ship_speed -= ship_water_resistance
-                if ship_speed < ship_target_speed and ship_speed < ship_max_speed:
+                if ship_speed < ship_target_speed and ship_speed < ship_max_speed and not currentlyReversing:
                     ship_speed += ship_acceleration_step
-                elif ship_speed > ship_target_speed + ship_acceleration_step:
+                elif ship_speed > ship_target_speed + ship_acceleration_step and not currentlyReversing:
                     ship_speed -= ship_acceleration_step
-                speedRatio = ship_speed / ship_max_speed
+                
+                elif ship_speed < ship_target_speed and ship_speed < abs(ship_max_speed_backward) and currentlyReversing:
+                    ship_speed += ship_acceleration_step
+                elif ship_speed > ship_target_speed + ship_acceleration_step and currentlyReversing:
+                    ship_speed -= ship_acceleration_step
+                
+                if not currentlyReversing:
+                    speedRatio = ship_speed / ship_max_speed
+                else:
+                    speedRatio = ship_speed / abs(ship_max_speed_backward)
                 speedRatio = max(0, min(1, speedRatio))
                 turnFactor = speedRatio * (1 - speedRatio)
                 ship_turning = ship_turning_rate * (1 + turnFactor)
@@ -65,18 +107,33 @@ class Waypoint(Entity):
                 #print("heading diff:", heading_diff)
                 #print("ship turning rate:", ship_turning)
                 #break
-                if ((desired_heading - math.degrees(ship_heading_rad) + 360) % 360) < 180:
-                    #print("turning right")
-                    ship_heading_rad += math.radians(ship_turning)
+                if not currentlyReversing:
+                    if ((desired_heading - math.degrees(ship_heading_rad) + 360) % 360) < 180:
+                        #print("turning right")
+                        ship_heading_rad += math.radians(ship_turning)
+                    else:
+                        #print("turning left")
+                        ship_heading_rad -= math.radians(ship_turning)
                 else:
-                    #print("turning left")
-                    ship_heading_rad -= math.radians(ship_turning)
+                    if ((desired_heading - (math.degrees(ship_heading_rad) + 180) + 360) % 360) < 180:
+                        ship_heading_rad += math.radians(ship_turning)
+                    else:
+                        ship_heading_rad -= math.radians(ship_turning)
                 #else:
                     #ship_heading_rad -= math.radians(ship_turning)
-                ship_pos += pygame.Vector2(
-                    ship_speed * math.cos(ship_heading_rad - math.pi / 2),
-                    ship_speed * math.sin(ship_heading_rad - math.pi / 2)
-                )
+                if not currentlyReversing:
+                    ship_pos += pygame.Vector2(
+                        ship_speed * math.cos(ship_heading_rad - math.pi / 2),
+                        ship_speed * math.sin(ship_heading_rad - math.pi / 2)
+                    )
+                else:
+                    #modified_heading = ship_heading_rad + math.pi
+                    #print("modified heading (reversing):", math.degrees(modified_heading))
+                    #break
+                    ship_pos += pygame.Vector2(
+                        ship_speed * math.cos(ship_heading_rad  - math.pi / 2),
+                        ship_speed * math.sin(ship_heading_rad - math.pi / 2)
+                    )
                 #print("/////////////////////////////////")
                 #print("desired heading:", desired_heading)
                 #print("current heading:", old_heading)
@@ -86,19 +143,52 @@ class Waypoint(Entity):
                 #print("ship speed:", ship_speed)
                 #print("ship desired speed:", ship_target_speed)
                 #print("total turning distance:", total_distance_traveled["turning_distance"])
-                control_points_forward.append((ship_pos.x, ship_pos.y))
+                if currentlyReversing:
+                    control_points_backward.append((ship_pos.x, ship_pos.y))
+                else:
+                    control_points_forward.append((ship_pos.x, ship_pos.y))
             else:
-                ship_target_speed = ship_max_speed
-                ship_speed -= ship_water_resistance
-                if ship_speed < ship_target_speed and ship_speed < ship_max_speed:
-                    ship_speed += ship_acceleration_step
-                elif ship_speed > ship_target_speed:
+                if currentlyReversing:
                     pass
-                ship_pos += pygame.Vector2(
-                    ship_speed * math.cos(ship_heading_rad - math.pi / 2),
-                    ship_speed * math.sin(ship_heading_rad - math.pi / 2)
-                )
-                control_points_forward.append((ship_pos.x, ship_pos.y))
+                    #print("reversing towards waypoint...")
+                #    print("target speed", ship_target_speed)
+                ship_target_speed = ship_max_speed
+                if currentlyReversing:
+                    ship_target_speed = ship_max_speed_backward
+                    #print("ship speed:", ship_speed)
+                    #break
+                ship_speed -= ship_water_resistance
+                if ship_speed < ship_target_speed and ship_speed < ship_max_speed and not currentlyReversing:
+                    ship_speed += ship_acceleration_step
+                elif ship_speed > ship_target_speed and not currentlyReversing:
+                    pass
+
+                elif ship_speed < ship_target_speed and ship_speed < abs(ship_max_speed_backward) and currentlyReversing:
+                    ship_speed += ship_acceleration_step
+                elif ship_speed > ship_target_speed and currentlyReversing:
+                    pass
+                
+                if not currentlyReversing:
+                    ship_pos += pygame.Vector2(
+                        ship_speed * math.cos(ship_heading_rad - math.pi / 2),
+                        ship_speed * math.sin(ship_heading_rad - math.pi / 2)
+                    )
+                else:
+                    #print("Reversing towards waypoint...")
+                    #print("Ship speed:", ship_speed)
+                    #print("Ship heading (deg):", math.degrees(ship_heading_rad))
+                    #print("target speed:", ship_target_speed)
+                    #modified_heading = ship_heading_rad + math.pi
+                    ship_pos += pygame.Vector2(
+                        ship_speed * math.cos(ship_heading_rad  - math.pi / 2),
+                        ship_speed * math.sin(ship_heading_rad - math.pi / 2)
+                    )
+                if currentlyReversing:
+                    control_points_backward.append((ship_pos.x, ship_pos.y))
+                    #pass
+                else:
+                    control_points_forward.append((ship_pos.x, ship_pos.y))
+                    #pass
             ship_heading_rad = ship_heading_rad % (2 * math.pi)
             if maxLoopIterations <= 0:
                 #print("Max loop iterations reached in waypoint distance calculation.")
@@ -112,7 +202,7 @@ class Waypoint(Entity):
             else:
                 forwardLoopIterations += 1
             currentlyLooping = loopingAllowed["backward"] if currentlyReversing else loopingAllowed["forward"]
-            if ship_pos.distance_to(waypoint_pos) < 10 or not currentlyLooping:
+            if ship_pos.distance_to(waypoint_pos) < 12 or not currentlyLooping:
                 if currentlyReversing:
                     looping = False
                 else:
@@ -121,11 +211,23 @@ class Waypoint(Entity):
                     ship_heading_rad = math.radians(parent.headingAngle)
                     ship_pos = pygame.Vector2(parent.rect.center)
                     maxLoopIterations = 10000
-        if backwardLoopIterations >= forwardLoopIterations:
-            self.shouldReverse = False
-        elif backwardLoopIterations < forwardLoopIterations:
-            self.shouldReverse = True
+        
+        # disabled for testing
+        #if backwardLoopIterations >= forwardLoopIterations:
+        #    self.shouldReverse = False
+        #elif backwardLoopIterations < forwardLoopIterations:
+        #    self.shouldReverse = True
+        
         if loopingAllowed["backward"] == False and loopingAllowed["forward"] == False:
             self.isValid = False
             self.game.throw_message("Unable to calculate valid route to waypoint.")
-        return control_points_forward if not self.shouldReverse else control_points_backward
+        control_points = [] # for testing
+        if loopingAllowed["backward"] == True:
+            for point in control_points_backward:
+                control_points.append(point)
+        if loopingAllowed["forward"] == True:
+            for point in control_points_forward:
+                control_points.append(point)
+        #print("length backwards:", len(control_points_backward))
+        #print("length forwards:", len(control_points_forward))
+        return control_points

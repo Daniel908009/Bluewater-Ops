@@ -1,27 +1,11 @@
 import pygame
-from entities.entity import Entity
+from entities.ship import Ship
 from entities.waypoint import Waypoint
 import math
 
-class Carrier(Entity):
+class Carrier(Ship):
     def __init__(self, game, position):
         super().__init__(game, position)
-        self.type = "carrier"
-        self.image = pygame.transform.scale(pygame.image.load("assets/carrier_symbol.png").convert_alpha(), (75, 75))
-        self.rect = self.image.get_rect(center=position)
-        self.headingAngle = 0
-        self.maxRotationSpeed = 3
-
-        self.optimalTurnSpeed = 0.5
-
-        self.speed = 0
-        self.maximumSpeedForward = 20
-        self.maximumSpeedBackward = -5
-        self.ACCELERATION_STEP = 4
-        self.targetSpeed = 0
-        self.FRICTION = 2
-
-        self.waypoints = []
         #self.waypoints.append(Waypoint(self, game, (1000, 500)))
         self.addWaypoint((100, 500))
     def addWaypoint(self, position):
@@ -36,7 +20,7 @@ class Carrier(Entity):
     def update(self, dt):
         if self.waypoints:
             target = self.waypoints[0]
-            if abs(self.rect.centerx - target.rect.centerx) < 10 and abs(self.rect.centery - target.rect.centery) < 10:
+            if abs(self.rect.centerx - target.rect.centerx) < 12 and abs(self.rect.centery - target.rect.centery) < 12:
                 self.waypoints[0].kill()
                 self.waypoints.pop(0)
 
@@ -55,10 +39,7 @@ class Carrier(Entity):
             pygame.draw.line(screen, (0, 255, 0), lastWaypointPos, adjusted_waypoint, 2)
             lastWaypointPos = adjusted_waypoint
             pygame.draw.circle(screen, (0, 255, 0), adjusted_waypoint, 5)
-        # Draw control points for debugging
         if self.waypoints:
             if self.waypoints[0].distance and self.game.selected_entity == self:
                 for point in self.waypoints[0].distance:
                     pygame.draw.circle(screen, (255, 0, 0), camera.apply(pygame.Vector2(point)), 3)
-                    #print("Control point:", point)
-        pygame.draw.circle(screen, (0, 0, 255), camera.apply(pygame.Vector2(self.rect.center)), 10, 1)
