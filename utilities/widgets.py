@@ -23,6 +23,9 @@ class GameUI:
         font = pygame.font.SysFont(None, 24)
         text_surface = font.render(camera_position_text, True, (255, 255, 255))
         self.screen.blit(text_surface, (10, 10))
+        fps_text = f"FPS: {int(self.game.clock.get_fps())}"
+        fps_text_render = font.render(fps_text, True, (255, 255, 255))
+        self.screen.blit(fps_text_render, (10, 30))
         if self.game.selected_entity:
             entity_text = f"Selected Entity: {self.game.selected_entity.type} at {self.game.selected_entity.rect.topleft}"
             entity_text_render = font.render(entity_text, True, (255, 255, 255))
@@ -30,6 +33,19 @@ class GameUI:
             waypoints_text = f"Waypoints: {len(self.game.selected_entity.waypoints)}"
             waypoints_text_render = font.render(waypoints_text, True, (255, 255, 255))
             self.screen.blit(waypoints_text_render, (10, height - waypoints_text_render.get_height() - 10))
+            entity_speed_text = f"Speed: {int(self.game.selected_entity.speed)}"
+            entity_speed_text_render = font.render(entity_speed_text, True, (255, 255, 255))
+            self.screen.blit(entity_speed_text_render, (200, height - entity_speed_text_render.get_height() - 10))
+class PlanControlUI:
+    def __init__(self, game):
+        self.game = game
+        self.screen = game.screen
+    def draw(self):
+        pass
+    def handle_events(self):
+        pass
+    def update(self, dt):
+        pass
 
 class GameMessage:
     def __init__(self, game, text, duration):

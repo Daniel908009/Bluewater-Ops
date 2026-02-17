@@ -5,3 +5,7 @@ class Entity(pygame.sprite.Sprite):
         super().__init__()
         self.game = game
         self.position = pygame.Vector2(position)
+    def update(self, dt):
+        pass
+    def draw(self, screen, camera):
+        pass
